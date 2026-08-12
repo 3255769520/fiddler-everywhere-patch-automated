@@ -445,12 +445,14 @@ jobs:
       - name: Copy Server Folder
         run: |
           $source_server_folder = "msojocs-patch/server/file"
-          $destination_server_folder = "FE/resources/app/out"
+          $destination_server_folder = "FE/resources/app/out/file"
 
           if (Test-Path $source_server_folder) {
-            Copy-Item -Path $source_server_folder -Destination $destination_server_folder -Recurse
+            New-Item -ItemType Directory -Force -Path $destination_server_folder | Out-Null
+            Copy-Item -Path "$source_server_folder\*" -Destination $destination_server_folder -Recurse -Force
+            Write-Host "Server folder copied to $destination_server_folder"
           } else {
-            Write-Host "Source Server Folder not found"
+            Write-Host "Source Server Folder not found at $source_server_folder"
           }
 
       - name: Enable Chinese translation
@@ -482,6 +484,14 @@ jobs:
       - name: Set user credentials
         run: |
           $source_json = "FE/resources/app/out/file/identity.getfiddler.com/oauth/token.json"
+
+          if (-Not (Test-Path $source_json)) {
+              Write-Error "Token file not found: $source_json"
+              Write-Host ">>> Directory structure of FE/resources/app/out <<<"
+              Get-ChildItem -Path "FE/resources/app/out" -Recurse | Select-Object FullName
+              exit 1
+          }
+
           $main_content = Get-Content -Path $source_json -Raw | ConvertFrom-Json
 
           $main_content.user_info.email = $env:PATCH_USER_EMAIL
