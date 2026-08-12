@@ -231,7 +231,17 @@ jobs:
       - name: Configure sparse-checkout to download the server directory
         run: |
           Set-Content -Path ".git/info/sparse-checkout" -Value "server"
-          git pull origin main
+          $msojocsBranch = "main"
+          $patchingVersion = $env:SCRAPED_VERSION
+          if ([string]::IsNullOrWhiteSpace($patchingVersion)) {
+              throw "SCRAPED_VERSION is empty; cannot select msojocs branch"
+          }
+          if ([version]$patchingVersion -ge [version]"8.0.0") {
+              $msojocsBranch = "v8.x"
+          }
+          Write-Host "FE version to patch: $patchingVersion"
+          Write-Host "Using msojocs/fiddler-everywhere-enhance branch: $msojocsBranch"
+          git pull origin $msojocsBranch
 
       - name: Move the downloaded directory to the target folder
         run: |
@@ -440,6 +450,35 @@ jobs:
             Remove-Item -Path "Yui-patch" -Recurse
           } else {
             Write-Host "Yui-patch Folder not found"
+          }
+
+      - name: Prepare Electron app directory
+        run: |
+          $resources = "FE/resources"
+          $appAsar = Join-Path $resources "app.asar"
+          $appDir = Join-Path $resources "app"
+          $unpackedDir = Join-Path $resources "app.asar.unpacked"
+
+          if (Test-Path $unpackedDir) {
+              New-Item -ItemType File -Path (Join-Path $unpackedDir "NOTICES-reporter.txt") -Force | Out-Null
+              Write-Host "Ensured NOTICES-reporter.txt exists"
+          }
+
+          if (Test-Path $appAsar) {
+              Write-Host "app.asar found; extracting to resources/app"
+              if (Test-Path $appDir) {
+                  Remove-Item -Path $appDir -Recurse -Force
+              }
+              npx --yes @electron/asar extract $appAsar $appDir
+              if (-not (Test-Path (Join-Path $appDir "out/main.js"))) {
+                  throw "app.asar extraction failed: resources/app/out/main.js not found"
+              }
+              Remove-Item -Path $appAsar -Force
+              Write-Host "app.asar extracted and removed"
+          } elseif (Test-Path (Join-Path $appDir "out/main.js")) {
+              Write-Host "resources/app already exists; skipping app.asar extraction"
+          } else {
+              throw "Neither resources/app.asar nor resources/app/out/main.js was found"
           }
 
       - name: Copy Server Folder
