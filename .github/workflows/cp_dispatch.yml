@@ -218,8 +218,11 @@ jobs:
   download-msojocs-server:
     runs-on: ubuntu-latest
     needs: validate-version
-    
+
     if: ${{ needs.validate-version.outputs.is_valid == 'true' }}
+
+    env:
+      SCRAPED_VERSION: ${{ github.event.inputs.version_to_patch }}
 
     steps:
       - name: Set up Git
