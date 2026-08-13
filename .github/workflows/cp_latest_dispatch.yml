@@ -212,6 +212,10 @@ jobs:
 
   download-msojocs-server:
     runs-on: ubuntu-latest
+    needs: scrape_fe_version
+
+    env:
+      SCRAPED_VERSION: ${{ needs.scrape_fe_version.outputs.scraped_version }}
 
     steps:
       - name: Set up Git
